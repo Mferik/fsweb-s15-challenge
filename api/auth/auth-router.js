@@ -1,8 +1,21 @@
-const router = require('express').Router();
+const router = require("express").Router();
+const middleware = require("./auth-middleware");
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = require("../../secrets/token");
+const bcryptjs = require("bcryptjs");
+const userModel = require("../models/user-models");
 
-router.post('/register', (req, res) => {
-  res.end('kayıt olmayı ekleyin, lütfen!');
-  /*
+function generateToken(payload, expireTime) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: expireTime });
+}
+
+router.post(
+  "/register",
+  middleware.payloadCheck,
+  middleware.userNameCheck,
+  async (req, res,next) => {
+    
+    /*
     EKLEYİN
     Uçnoktanın işlevselliğine yardımcı olmak için middlewarelar yazabilirsiniz.
     2^8 HASH TURUNU AŞMAYIN!
@@ -27,11 +40,25 @@ router.post('/register', (req, res) => {
     4- Kullanıcı adı alınmışsa BAŞARISIZ kayıtta,
       şu mesajı içermelidir: "username alınmış".
   */
-});
+    try {
+      const model = {
+        username: req.body.username,
+        password: bcryptjs.hashSync(req.body.password),
+      };
+      const insertedRecord = await userModel.insertUser(model);
+      res.status(201).json(insertedRecord);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
-router.post('/login', (req, res) => {
-  res.end('girişi ekleyin, lütfen!');
-  /*
+router.post(
+  "/login",
+  middleware.payloadCheck,
+  middleware.loginPasswordCheck,
+  async (req, res,next) => {
+    /*
     EKLEYİN
     Uçnoktanın işlevselliğine yardımcı olmak için middlewarelar yazabilirsiniz.
 
@@ -54,6 +81,19 @@ router.post('/login', (req, res) => {
     4- "username" db de yoksa ya da "password" yanlışsa BAŞARISIZ giriş,
       şu mesajı içermelidir: "geçersiz kriterler".
   */
-});
+    try {
+      const payload = {
+        username: req.body.username,
+      };
+      const token = generateToken(payload, "id");
+      res.json({
+        message: `welcome, ${req.body.username}`,
+        token: token,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 module.exports = router;
